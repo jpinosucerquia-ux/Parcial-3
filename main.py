@@ -22,12 +22,12 @@ while True:
     if opcion == '1':
         carpeta = input("Ingrese la ruta de la carpeta DICOM: ")
         estudio = gestor.cargar_estudio(carpeta)
-        print("✅ Estudio cargado correctamente.")
+        print(" Estudio cargado correctamente.")
     elif opcion == '2':
         if gestor.estudios:
             gestor.estudios[-1].mostrar_cortes()
         else:
-            print("⚠️ No hay estudios cargados.")
+            print(" No hay estudios cargados.")
     elif opcion == '3':
         x, y, w, h = map(int, input("Ingrese x, y, ancho, alto: ").split())
         nombre = input("Nombre para guardar el recorte: ")
