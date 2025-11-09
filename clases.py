@@ -6,6 +6,7 @@ import dicom2nifti
 import matplotlib.pyplot as plt
 from nilearn import plotting
 
+
 class GestorDICOM:
     def __init__(self):
         self.estudios = []
@@ -102,32 +103,13 @@ class EstudioImaginologico:
         plt.title("Recorte y Redimensionado")
 
         plt.show()
+        os.makedirs("resultados", exist_ok=True)
         cv2.imwrite(f"resultados/{nombre_salida}.png", recorte_redimensionado)
 
-    def segmentar(self, tipo):
+    def segmentar(self, tipo, nombre_salida):
+        os.makedirs("resultados", exist_ok=True)
         img = self.imagen[self.imagen.shape[0] // 2, :, :]
         norm = ((img - np.min(img)) / (np.max(img) - np.min(img)) * 255).astype(np.uint8)
         _, segmented = cv2.threshold(norm, 127, 255, tipo)
-        plt.imshow(segmented, cmap='gray')
-        plt.title("Imagen Segmentada")
-        plt.show()
-        cv2.imwrite("resultados/segmentacion.png", segmented)
 
-    def transformacion_morfologica(self, kernel_size):
-        img = self.imagen[self.imagen.shape[0] // 2, :, :]
-        norm = ((img - np.min(img)) / (np.max(img) - np.min(img)) * 255).astype(np.uint8)
-        kernel = np.ones((kernel_size, kernel_size), np.uint8)
-        morf = cv2.morphologyEx(norm, cv2.MORPH_OPEN, kernel)
-        plt.imshow(morf, cmap='gray')
-        plt.title("Transformación Morfológica (Apertura)")
-        plt.show()
-        cv2.imwrite("resultados/morfologia.png", morf)
-
-    def convertir_a_nifti(self, carpeta_dicom, carpeta_salida):
-        os.makedirs(carpeta_salida, exist_ok=True)
-        dicom2nifti.convert_directory(carpeta_dicom, carpeta_salida)
-        print(f"Conversión a NIFTI completada y guardada en: {carpeta_salida}")
-
-    def mostrar_cortes_3d(self, archivo_nifti):
-        plotting.plot_anat(archivo_nifti, display_mode='ortho', title="Cortes 3D (NIfTI)")
-        plotting.show()
+        # Generate unique filename if it already exists

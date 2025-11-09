@@ -39,13 +39,13 @@ while True:
         else:
             print("No hay estudios cargados.")
     elif opcion == '4':
-        if gestor.estudios:
-            print("Tipos disponibles:\n0: BINARIO\n1: BINARIO_INV\n2: TRUNCADO\n3: TOZERO\n4: TOZERO_INV")
-            tipo = int(input("Ingrese el tipo de binarización: "))
-            tipos = [cv2.THRESH_BINARY, cv2.THRESH_BINARY_INV, cv2.THRESH_TRUNC, cv2.THRESH_TOZERO, cv2.THRESH_TOZERO_INV]
-            gestor.estudios[-1].segmentar(tipos[tipo])
-        else:
-            print("No hay estudios cargados.")
+        print("Tipos disponibles:\n0: BINARIO\n1: BINARIO_INV\n2: TRUNCADO\n3: TOZERO\n4: TOZERO_INV")
+        tipo = int(input("Ingrese el tipo de binarización: "))
+        nombre = input("Ingrese nombre para guardar la segmentación: ")
+        tipos = [cv2.THRESH_BINARY, cv2.THRESH_BINARY_INV, cv2.THRESH_TRUNC, cv2.THRESH_TOZERO, cv2.THRESH_TOZERO_INV]
+        gestor.estudios[-1].segmentar(tipos[tipo], nombre)
+
+
     elif opcion == '5':
         if gestor.estudios:
             kernel = int(input("Ingrese tamaño de kernel: "))
