@@ -3,43 +3,53 @@ import cv2
 import numpy as np
 import pydicom
 import dicom2nifti
-import nibabel as nib
 import matplotlib.pyplot as plt
 from nilearn import plotting
 
-# -------------------- Clase 1: GestorDICOM --------------------
 
 class GestorDICOM:
     def __init__(self):
         self.estudios = []
 
     def cargar_estudio(self, carpeta):
-        """Carga todos los archivos DICOM de una carpeta y crea un EstudioImaginologico"""
-        archivos = [f for f in os.listdir(carpeta) if f.endswith('.dcm')]
-        volumen = []
+        if not os.path.exists(carpeta):
+            print("Ruta no encontrada.")
+            return None
 
+        archivos = [f for f in os.listdir(carpeta) if f.endswith('.dcm')]
+        if not archivos:
+            print("No se encontraron archivos DICOM en la carpeta.")
+            return None
+
+        volumen = []
         for archivo in sorted(archivos):
-            ds = pydicom.dcmread(os.path.join(carpeta, archivo))
-            volumen.append(ds.pixel_array)
+            try:
+                ds = pydicom.dcmread(os.path.join(carpeta, archivo))
+                if hasattr(ds, "PixelData"):
+                    volumen.append(ds.pixel_array)
+            except Exception as e:
+                print(f"Error leyendo {archivo}: {e}")
+
+        if not volumen:
+            print("No se pudieron leer imágenes DICOM válidas.")
+            return None
 
         volumen_3d = np.stack(volumen, axis=0)
         ds0 = pydicom.dcmread(os.path.join(carpeta, archivos[0]))
 
-        # Crear objeto EstudioImaginologico
         estudio = EstudioImaginologico(
-            study_date=ds0.StudyDate,
-            study_time=ds0.StudyTime,
-            modality=ds0.Modality,
+            study_date=getattr(ds0, "StudyDate", "Desconocido"),
+            study_time=getattr(ds0, "StudyTime", "Desconocido"),
+            modality=getattr(ds0, "Modality", "Desconocida"),
             description=getattr(ds0, "StudyDescription", "Sin descripción"),
-            series_time=ds0.SeriesTime,
+            series_time=getattr(ds0, "SeriesTime", "Desconocida"),
             imagen=volumen_3d,
-            pixel_spacing=ds0.PixelSpacing,
-            slice_thickness=float(ds0.SliceThickness)
+            pixel_spacing=getattr(ds0, "PixelSpacing", [1.0, 1.0]),
+            slice_thickness=float(getattr(ds0, "SliceThickness", 1.0))
         )
         self.estudios.append(estudio)
         return estudio
 
-# -------------------- Clase 2: EstudioImaginologico --------------------
 
 class EstudioImaginologico:
     def __init__(self, study_date, study_time, modality, description, series_time,
@@ -53,27 +63,25 @@ class EstudioImaginologico:
         self.pixel_spacing = pixel_spacing
         self.slice_thickness = slice_thickness
 
-    # ---- Mostrar los 3 cortes (coronal, sagital, transversal)
     def mostrar_cortes(self):
         z, y, x = self.imagen.shape
         plt.figure(figsize=(12, 4))
 
         plt.subplot(1, 3, 1)
-        plt.imshow(self.imagen[z//2, :, :], cmap='gray')
+        plt.imshow(self.imagen[z // 2, :, :], cmap='gray')
         plt.title("Corte Transversal")
 
         plt.subplot(1, 3, 2)
-        plt.imshow(self.imagen[:, y//2, :], cmap='gray')
+        plt.imshow(self.imagen[:, y // 2, :], cmap='gray')
         plt.title("Corte Coronal")
 
         plt.subplot(1, 3, 3)
-        plt.imshow(self.imagen[:, :, x//2], cmap='gray')
+        plt.imshow(self.imagen[:, :, x // 2], cmap='gray')
         plt.title("Corte Sagital")
 
         plt.tight_layout()
         plt.show()
 
-    # ---- Método de Zoom y recorte con OpenCV
     def zoom(self, x, y, w, h, nombre_salida):
         img2d = self.imagen[self.imagen.shape[0] // 2, :, :]
         norm = ((img2d - np.min(img2d)) / (np.max(img2d) - np.min(img2d)) * 255).astype(np.uint8)
@@ -95,36 +103,13 @@ class EstudioImaginologico:
         plt.title("Recorte y Redimensionado")
 
         plt.show()
+        os.makedirs("resultados", exist_ok=True)
         cv2.imwrite(f"resultados/{nombre_salida}.png", recorte_redimensionado)
 
-    # ---- Segmentación
-    def segmentar(self, tipo):
+    def segmentar(self, tipo, nombre_salida):
+        os.makedirs("resultados", exist_ok=True)
         img = self.imagen[self.imagen.shape[0] // 2, :, :]
         norm = ((img - np.min(img)) / (np.max(img) - np.min(img)) * 255).astype(np.uint8)
         _, segmented = cv2.threshold(norm, 127, 255, tipo)
-        plt.imshow(segmented, cmap='gray')
-        plt.title("Imagen Segmentada")
-        plt.show()
-        cv2.imwrite("resultados/segmentacion.png", segmented)
 
-    # ---- Transformación morfológica
-    def transformacion_morfologica(self, kernel_size):
-        img = self.imagen[self.imagen.shape[0] // 2, :, :]
-        norm = ((img - np.min(img)) / (np.max(img) - np.min(img)) * 255).astype(np.uint8)
-        kernel = np.ones((kernel_size, kernel_size), np.uint8)
-        morf = cv2.morphologyEx(norm, cv2.MORPH_OPEN, kernel)
-        plt.imshow(morf, cmap='gray')
-        plt.title("Transformación Morfológica (Apertura)")
-        plt.show()
-        cv2.imwrite("resultados/morfologia.png", morf)
-
-    # ---- Conversión a NIFTI usando dicom2nifti
-    def convertir_a_nifti(self, carpeta_dicom, carpeta_salida):
-        os.makedirs(carpeta_salida, exist_ok=True)
-        dicom2nifti.convert_directory(carpeta_dicom, carpeta_salida)
-        print(f"✅ Conversión a NIFTI completada y guardada en: {carpeta_salida}")
-
-    # ---- Visualización 3D con nilearn
-    def mostrar_cortes_3d(self, archivo_nifti):
-        plotting.plot_anat(archivo_nifti, display_mode='ortho', title="Cortes 3D (NIfTI)")
-        plotting.show()
+        # Generate unique filename if it already exists
